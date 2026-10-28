@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -80,6 +82,46 @@ func TestExampleFiles(t *testing.T) {
 		again, _, _ := processFile("anon", f, back, k2, Stats{})
 		if len(again) == 0 {
 			t.Fatal("restored file is not readable")
+		}
+	}
+}
+
+// Many office sheets start with a title; the header row is lower down.
+func TestTitleRowAboveHeader(t *testing.T) {
+	data, err := os.ReadFile("testdata/garchigtai.xlsx")
+	if err != nil {
+		t.Skip(err)
+	}
+	k := NewKey()
+	st := Stats{}
+	if _, _, err := processFile("anon", "garchigtai.xlsx", data, k, st); err != nil {
+		t.Fatal(err)
+	}
+	if st[KName] != 4 || st[KPhone] != 2 || st[KReg] != 2 {
+		t.Errorf("columns under a title row not detected: %v", st)
+	}
+}
+
+func TestLocalOnly(t *testing.T) {
+	h := localOnly("127.0.0.1:5000", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	for _, c := range []struct {
+		host, origin string
+		want         int
+	}{
+		{"127.0.0.1:5000", "", 200},
+		{"127.0.0.1:5000", "http://127.0.0.1:5000", 200},
+		{"evil.example:5000", "", 403},
+		{"127.0.0.1:5000", "http://evil.example", 403},
+	} {
+		r := httptest.NewRequest("POST", "/api/process", nil)
+		r.Host = c.host
+		if c.origin != "" {
+			r.Header.Set("Origin", c.origin)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != c.want {
+			t.Errorf("%+v: got %d", c, w.Code)
 		}
 	}
 }

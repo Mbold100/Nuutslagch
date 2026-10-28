@@ -235,16 +235,29 @@ func (d *xlsxDoc) cellText(c cellInfo) string {
 	return ""
 }
 
-func (d *xlsxDoc) colKinds(cs []cellInfo) map[string]string {
-	kinds := map[string]string{}
+// colKinds finds the header row (the row among the first 20 that names the
+// most name/register/phone/e-mail columns, since many sheets start with a
+// title) and returns the kind of each column plus the header row number.
+func (d *xlsxDoc) colKinds(cs []cellInfo) (map[string]string, int) {
+	perRow := map[int]map[string]string{}
 	for _, c := range cs {
-		if c.row == 1 {
-			if k := columnKind(d.cellText(c)); k != "" {
-				kinds[c.col] = k
+		if c.row < 1 || c.row > 20 {
+			continue
+		}
+		if k := columnKind(d.cellText(c)); k != "" {
+			if perRow[c.row] == nil {
+				perRow[c.row] = map[string]string{}
 			}
+			perRow[c.row][c.col] = k
 		}
 	}
-	return kinds
+	best, hdr := map[string]string{}, 1
+	for r := 1; r <= 20; r++ {
+		if len(perRow[r]) > len(best) {
+			best, hdr = perRow[r], r
+		}
+	}
+	return best, hdr
 }
 
 // CollectNames adds every value of name columns to the key dictionary.
@@ -252,9 +265,9 @@ func (d *xlsxDoc) CollectNames(k *Key) int {
 	n := 0
 	for _, sh := range d.sheets {
 		cs := parseCells(string(sh.data))
-		kinds := d.colKinds(cs)
+		kinds, hdr := d.colKinds(cs)
 		for _, c := range cs {
-			if c.row > 1 && kinds[c.col] == KName {
+			if c.row > hdr && kinds[c.col] == KName {
 				v := strings.TrimSpace(d.cellText(c))
 				if v == "" {
 					continue
@@ -296,13 +309,14 @@ func AnonymizeXlsx(b []byte, k *Key, st Stats) ([]byte, error) {
 		sh   *zentry
 		cs   []cellInfo
 		kind map[string]string
+		hdr  int
 	}
 	var ps []pend
 	for _, sh := range d.sheets {
 		cs := parseCells(string(sh.data))
-		kinds := d.colKinds(cs)
+		kinds, hdr := d.colKinds(cs)
 		for _, c := range cs {
-			if c.row > 1 && kinds[c.col] != "" && c.t == "s" {
+			if c.row > hdr && kinds[c.col] != "" && c.t == "s" {
 				if m := reV.FindStringSubmatch(c.body); m != nil {
 					if i, err := strconv.Atoi(strings.TrimSpace(m[1])); err == nil {
 						siKind[i] = kinds[c.col]
@@ -310,7 +324,7 @@ func AnonymizeXlsx(b []byte, k *Key, st Stats) ([]byte, error) {
 				}
 			}
 		}
-		ps = append(ps, pend{sh, cs, kinds})
+		ps = append(ps, pend{sh, cs, kinds, hdr})
 	}
 	for i := range d.si {
 		kind := siKind[i]
@@ -322,7 +336,7 @@ func AnonymizeXlsx(b []byte, k *Key, st Stats) ([]byte, error) {
 		prev := 0
 		for _, c := range p.cs {
 			kind := ""
-			if c.row > 1 {
+			if c.row > p.hdr {
 				kind = p.kind[c.col]
 			}
 			repl := ""

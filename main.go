@@ -213,5 +213,25 @@ func main() {
 	fmt.Println("Бүх ажил ЗӨВХӨН энэ компьютер дээр хийгдэнэ. Интернэт рүү юу ч илгээхгүй.")
 	fmt.Println("Ажлаа дуусгаад энэ цонхыг хаавал программ унтарна.")
 	openBrowser(url)
-	http.Serve(ln, mux)
+	http.Serve(ln, localOnly(ln.Addr().String(), mux))
+}
+
+// localOnly rejects requests that do not come from this program's own page:
+// another website open in the browser must not be able to use the local
+// server (DNS rebinding, cross-site form posts).
+func localOnly(addr string, h http.Handler) http.Handler {
+	_, port, _ := net.SplitHostPort(addr)
+	allowed := map[string]bool{"127.0.0.1:" + port: true, "localhost:" + port: true}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !allowed[r.Host] {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if o := r.Header.Get("Origin"); o != "" && !allowed[strings.TrimPrefix(o, "http://")] {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		w.Header().Set("X-Frame-Options", "DENY")
+		h.ServeHTTP(w, r)
+	})
 }
