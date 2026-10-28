@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Нууцлагч</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--ink:#1d2433;--mute:#667085;--line:#dfe3ea;--pri:#1f4e78;--pri2:#2e6aa3;--ok:#1b7f4b;--warn:#b54708;--chip:#eef3f9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",Arial,sans-serif}
+header{background:var(--pri);color:#fff;padding:18px 24px}
+header h1{margin:0;font-size:22px}
+header p{margin:4px 0 0;opacity:.85;font-size:14px}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.keybar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.keybar .st{flex:1;min-width:220px;font-weight:600}
+.keybar .st small{display:block;font-weight:400;color:var(--mute)}
+button,.btn{border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--chip);color:var(--pri)}
+button.pri{background:var(--pri);color:#fff}
+button.pri:hover{background:var(--pri2)}
+button.big{padding:12px 22px;font-size:16px}
+button:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:6px;margin-bottom:-1px}
+.tab{padding:10px 18px;border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:#e9edf3;cursor:pointer;font-weight:600;color:var(--mute)}
+.tab.on{background:var(--card);color:var(--ink)}
+.pane{display:none;border-top-left-radius:0}
+.pane.on{display:block}
+.drop{border:2px dashed #b9c4d3;border-radius:12px;padding:30px;text-align:center;color:var(--mute);cursor:pointer;transition:.15s}
+.drop.hover{border-color:var(--pri);background:#f0f5fb}
+.drop b{color:var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+label{font-weight:600;display:block;margin-bottom:6px}
+textarea{width:100%;min-height:200px;border:1px solid var(--line);border-radius:8px;padding:10px;font:14px/1.5 "Segoe UI",Arial,sans-serif;resize:vertical}
+.msg{margin-top:14px;padding:12px 14px;border-radius:8px;display:none}
+.msg.ok{display:block;background:#e8f6ee;color:var(--ok)}
+.msg.err{display:block;background:#fdecea;color:#b42318}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0;padding:0;list-style:none}
+@media(max-width:800px){.steps{grid-template-columns:1fr 1fr}}
+.steps li{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:14px}
+.steps b{display:block;color:var(--pri)}
+.warn{color:var(--warn);font-size:14px;margin-top:8px}
+input[type=file]{display:none}
+.dl{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Нууцлагч</h1>
+  <p>Нэр, регистр, утас, и-мэйлийг код болгож нуугаад, AI-аар ажилласны дараа буцааж сэргээнэ. Бүх зүйл зөвхөн энэ компьютер дээр хийгдэнэ.</p>
+</header>
+<main>
+
+<div class="card">
+  <ul class="steps">
+    <li><b>1. Нууцлах</b>Файл эсвэл текстээ оруулаад «Нууцлах» дарна</li>
+    <li><b>2. Түлхүүр хадгалах</b>Түлхүүр файлыг өөртөө үлдээнэ. AI-д бүү явуул!</li>
+    <li><b>3. AI-аар ажиллах</b>Нууцалсан файл, текстээ AI-д өгнө</li>
+    <li><b>4. Сэргээх</b>AI-ийн хариуг оруулаад «Сэргээх» дарна</li>
+  </ul>
+</div>
+
+<div class="card keybar">
+  <div class="st" id="keySt">Түлхүүр: хоосон<small>Нууцлах үед шинээр үүснэ</small></div>
+  <button onclick="pick('keyIn')">Түлхүүр ачаалах</button>
+  <button onclick="saveKey()" id="keySave" disabled>Түлхүүр хадгалах</button>
+  <button onclick="pick('namesIn')" title="Ажилтнуудын нэрсийн Excel эсвэл мөр бүрт нэг нэртэй .txt">Нэрсийн жагсаалт нэмэх</button>
+  <button onclick="resetKey()">Шинээр эхлэх</button>
+  <input type="file" id="keyIn" accept=".json">
+  <input type="file" id="namesIn" accept=".xlsx,.txt">
+</div>
+<div class="msg" id="keyMsg"></div>
+
+<div class="tabs">
+  <div class="tab on" data-t="file">📄 Файл</div>
+  <div class="tab" data-t="text">✏️ Текст</div>
+</div>
+
+<div class="card pane on" id="p-file">
+  <div class="drop" id="drop" onclick="pick('fileIn')">
+    <b>Файлаа энд чирж оруулна уу</b><br>эсвэл дарж сонгоно уу<br><small>.xlsx · .docx · .txt · .csv</small>
+    <div id="fname" style="margin-top:10px;font-weight:600;color:var(--pri)"></div>
+  </div>
+  <input type="file" id="fileIn" accept=".xlsx,.docx,.txt,.csv,.md">
+  <div class="row">
+    <button class="pri big" onclick="runFile('anon')">🔒 Нууцлах</button>
+    <button class="big" onclick="runFile('restore')">🔓 Сэргээх</button>
+  </div>
+  <div class="msg" id="fileMsg"></div>
+  <div class="dl" id="fileDl"></div>
+  <div id="tipBox" style="display:none;margin-top:14px"><label>AI-д файлтай хамт өгөх сануулга</label>
+   <textarea id="tipTxt" readonly style="min-height:90px"></textarea><div class="row"><button onclick="copy('tipTxt')">Хуулах</button></div></div>
+</div>
+
+<div class="card pane" id="p-text">
+  <div class="grid">
+    <div><label>1. Эх текст</label><textarea id="tIn" placeholder="Нууцлах текстээ энд буулгана уу"></textarea>
+      <div class="row"><button class="pri" onclick="runText('anon')">🔒 Нууцлах</button>
+      <label style="font-weight:400;margin:8px 0 0"><input type="checkbox" id="addTip" checked style="display:inline"> AI-д кодыг хэвээр үлдээх сануулга нэмэх</label></div></div>
+    <div><label>Нууцалсан текст (AI-д өгөх)</label><textarea id="tOut" readonly></textarea>
+      <div class="row"><button onclick="copy('tOut')">Хуулах</button></div></div>
+    <div><label>2. AI-ийн хариу</label><textarea id="rIn" placeholder="AI-ийн хариуг энд буулгана уу"></textarea>
+      <div class="row"><button class="pri" onclick="runText('restore')">🔓 Сэргээх</button></div></div>
+    <div><label>Сэргээсэн текст</label><textarea id="rOut" readonly></textarea>
+      <div class="row"><button onclick="copy('rOut')">Хуулах</button></div></div>
+  </div>
+  <div class="msg" id="textMsg"></div>
+</div>
+
+<p class="warn">⚠️ Энэ хэрэгсэл ихэнх нэрийг автоматаар олох боловч 100% баталгаа өгөхгүй. AI-д өгөхөөсөө өмнө нууцалсан хувилбарыг нэг харж шалгаарай. Төрийн болон албаны нууцтай баримтыг ямар ч AI-д бүү оруул.</p>
+</main>
+
+<script>
+let KEY=null, FILE=null;
+const TIP="Анхааруулга: Энэ баримтад ХҮН_0001, РД_0001, УТАС_0001, ИМЭЙЛ_0001 гэх мэт кодууд байгаа. Эдгээр нь нууцалсан хүний нэр, регистр, утасны дугаар, и-мэйл хаяг. Кодуудыг яг хэвээр нь бич: өөрчлөх, нэгтгэх, орчуулах, жинхэнэ нэрээр солих гэж оролдохгүй. Залгавар залгах бол зураасаар залга (жишээ: ХҮН_0001-ийн).";
+function unkTxt(r){return r.unknown&&r.unknown.length?'<br><b>⚠️ Түлхүүрт байхгүй '+r.unknown.length+' код олдлоо:</b> '+[...new Set(r.unknown)].slice(0,15).join(', ')+'. AI шинэ код зохиосон, эсвэл өөр түлхүүр ачаалсан байж магадгүй. Эдгээрийг гараар шалгана уу.':''}
+const $=id=>document.getElementById(id);
+const kinds={"ХҮН":"нэр","РД":"регистр","УТАС":"утас","ИМЭЙЛ":"и-мэйл"};
+function pick(id){$(id).click()}
+function msg(id,t,ok){const m=$(id);m.className='msg '+(ok?'ok':'err');m.innerHTML=t}
+function statTxt(s){const p=[];for(const k in kinds)if(s&&s[k])p.push(s[k]+' '+kinds[k]);if(s&&s.unknown)p.push(s.unknown+' танигдаагүй код');return p.length?p.join(', '):'солих зүйл олдсонгүй'}
+function keyStatus(){const n=KEY&&KEY.items?KEY.items.length:0,nm=KEY&&KEY.names?KEY.names.length:0;
+ $('keySt').innerHTML='Түлхүүр: '+n+' код, '+nm+' нэрийн жагсаалт<small>'+(n?'Сэргээхэд хэрэгтэй тул заавал хадгалаарай':'Нууцлах үед шинээр үүснэ')+'</small>';$('keySave').disabled=!n&&!nm}
+function b64blob(b){const s=atob(b),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return new Blob([a])}
+function dlLink(blob,name,label){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.textContent=label;a.className='btn';return a}
+function keyBlob(){return new Blob([JSON.stringify(KEY,null,1)],{type:'application/json'})}
+function keyName(){const d=new Date();return 'ТҮЛХҮҮР_'+d.toISOString().slice(0,16).replace(/[-:T]/g,'')+'.json'}
+function saveKey(){const a=dlLink(keyBlob(),keyName(),'');a.click()}
+function resetKey(){if(KEY&&KEY.items&&KEY.items.length&&!confirm('Одоогийн түлхүүрийг арилгах уу? Хадгалаагүй бол сэргээх боломжгүй болно.'))return;KEY=null;keyStatus();msg('keyMsg','Шинэ түлхүүрээр эхэллээ',true)}
+async function post(url,fd){if(KEY)fd.append('key',JSON.stringify(KEY));const r=await fetch(url,{method:'POST',body:fd});return r.json()}
+
+$('keyIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{KEY=JSON.parse(await f.text());keyStatus();msg('keyMsg','Түлхүүр ачааллаа: '+f.name,true)}catch(x){msg('keyMsg','Түлхүүр файл буруу байна',false)}e.target.value=''}
+$('namesIn').onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const r=await post('/api/names',fd);
+ if(!r.ok)return msg('keyMsg',r.error,false);KEY=r.key;keyStatus();msg('keyMsg','Нэрсийн жагсаалтад '+r.added+' нэр нэмэгдлээ',true);e.target.value=''}
+
+function setFile(f){FILE=f;$('fname').textContent=f?f.name:'';$('fileDl').innerHTML='';$('fileMsg').className='msg'}
+$('fileIn').onchange=e=>setFile(e.target.files[0]);
+const dr=$('drop');['dragenter','dragover'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.add('hover')}));
+['dragleave','drop'].forEach(ev=>dr.addEventListener(ev,e=>{e.preventDefault();dr.classList.remove('hover')}));
+dr.addEventListener('drop',e=>{if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0])});
+
+async function runFile(mode){
+ if(!FILE)return msg('fileMsg','Эхлээд файлаа сонгоно уу',false);
+ if(mode==='restore'&&!(KEY&&KEY.items&&KEY.items.length))return msg('fileMsg','Сэргээхийн тулд эхлээд «Түлхүүр ачаалах» товчоор түлхүүрээ оруулна уу',false);
+ msg('fileMsg','Ажиллаж байна…',true);const fd=new FormData();fd.append('mode',mode);fd.append('file',FILE);
+ const r=await post('/api/process',fd);if(!r.ok)return msg('fileMsg',r.error,false);
+ KEY=r.key;keyStatus();const dl=$('fileDl');dl.innerHTML='';
+ const a=dlLink(b64blob(r.fileB64),r.fileName,(mode==='anon'?'⬇ Нууцалсан файл татах':'⬇ Сэргээсэн файл татах'));a.classList.add('pri');a.style.background='var(--pri)';a.style.color='#fff';dl.appendChild(a);
+ if(mode==='anon'){dl.appendChild(dlLink(keyBlob(),keyName(),'🔑 Түлхүүр татах'));
+  msg('fileMsg','Нууцаллаа: '+statTxt(r.stats)+'.<br>Хоёр файлыг хоёуланг нь татаарай. Түлхүүрийг өөртөө үлдээгээд, зөвхөн нууцалсан файлыг AI-д өгнө.',true);
+  $('tipTxt').value=TIP;$('tipBox').style.display='block'}
+ else {$('tipBox').style.display='none';msg('fileMsg','Сэргээлээ: '+statTxt(r.stats)+unkTxt(r),!(r.unknown&&r.unknown.length))}}
+
+async function runText(mode){
+ const src=mode==='anon'?$('tIn').value:$('rIn').value;if(!src.trim())return msg('textMsg','Текст хоосон байна',false);
+ if(mode==='restore'&&!(KEY&&KEY.items&&KEY.items.length))return msg('textMsg','Сэргээхийн тулд түлхүүр хэрэгтэй. Эхлээд нууцлах эсвэл түлхүүрээ ачаална уу',false);
+ const fd=new FormData();fd.append('mode',mode);fd.append('text',src);const r=await post('/api/process',fd);
+ if(!r.ok)return msg('textMsg',r.error,false);KEY=r.key;keyStatus();
+ $(mode==='anon'?'tOut':'rOut').value=(mode==='anon'&&$('addTip').checked?TIP+'\n\n':'')+r.text;
+ msg('textMsg',(mode==='anon'?'Нууцаллаа: ':'Сэргээлээ: ')+statTxt(r.stats)+(mode==='anon'?'. Түлхүүрээ хадгалахаа мартуузай.':unkTxt(r)),!(mode!=='anon'&&r.unknown&&r.unknown.length))}
+
+function copy(id){navigator.clipboard.writeText($(id).value).then(()=>msg('textMsg','Хууллаа',true))}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+ document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t.dataset.t))});
+window.addEventListener('beforeunload',e=>{if(KEY&&KEY.items&&KEY.items.length){e.preventDefault();e.returnValue=''}});
+keyStatus();
+</script>
+</body>
+</html>
